@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <!-- SheetJS (엑셀 다운로드용) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- 파이어베이스 SDK (파이어베이스와 연결해주는 부품 2개) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -42,7 +42,7 @@
             console.error("파이어베이스 연결 오류:", e);
         }
 
-        // 1~9반 실제 출석부 명단[cite: 1]
+        // 1~9반 실제 출석부 명단
         const INITIAL_ROSTERS = {
             1: [
                 {number:1, name:"KULAPTHIP THANYALAK"}, {number:2, name:"강지은"}, {number:3, name:"고영주"},
@@ -127,7 +127,6 @@
             classesData: savedData
         };
 
-        // 파이어베이스 실시간 데이터 가져오기
         if (dbRef) {
             dbRef.on('value', (snapshot) => {
                 const remoteData = snapshot.val();
