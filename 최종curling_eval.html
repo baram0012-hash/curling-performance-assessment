@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🥌 미니 컬링 수행평가 실전 채점 장부</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- SheetJS (엑셀 다운로드용) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 파이어베이스 SDK (파이어베이스와 연결해주는 부품 2개) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .btn-chic { transition: all 0.1s ease-in-out; }
+        .btn-chic:active { transform: scale(0.92); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex justify-center items-center">
+    <div id="app" class="w-full max-w-lg bg-slate-950 min-h-screen shadow-2xl flex flex-col relative border-x border-slate-800"></div>
+
+    <script>
+        // ============================================================
+        // 👇 여기 큰따옴표("") 안에 내 파이어베이스 주소를 붙여넣으세요!
+        // ============================================================
+        const firebaseConfig = {
+            databaseURL: "https://curling-performance-assessment-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
+        let dbRef = null;
+        try {
+            if (firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes("여기에_내_파이어베이스_주소")) {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                dbRef = firebase.database().ref('curling_eval_v3');
+            }
+        } catch (e) {
+            console.error("파이어베이스 연결 오류:", e);
+        }
+
+        // 1~9반 실제 출석부 명단[cite: 1]
+        const INITIAL_ROSTERS = {
+            1: [
+                {number:1, name:"KULAPTHIP THANYALAK"}, {number:2, name:"강지은"}, {number:3, name:"고영주"},
+                {number:4, name:"김성주"}, {number:5, name:"김수현"}, {number:8, name:"남가희"},
+                {number:9, name:"박예진"}, {number:10, name:"박은서"}, {number:11, name:"석주원"},
+                {number:12, name:"유아름"}, {number:13, name:"이예린"}, {number:16, name:"이채원"},
+                {number:17, name:"정아정"}, {number:18, name:"조효진"}, {number:19, name:"최소현"}, {number:20, name:"박하영"}
+            ],
+            2: [
+                {number:1, name:"DANG NGOC QUYNH NHU"}, {number:2, name:"강수빈"}, {number:3, name:"김나희(위탁)"},
+                {number:4, name:"김무경"}, {number:6, name:"문서빈"}, {number:7, name:"박예지"},
+                {number:8, name:"박예진"}, {number:9, name:"배지현"}, {number:10, name:"서주원"},
+                {number:11, name:"윤소미(위탁)"}, {number:12, name:"이예나"}, {number:13, name:"정하늬"},
+                {number:14, name:"지현영"}, {number:15, name:"차은혜"}, {number:16, name:"한수빈"},
+                {number:17, name:"홍지서"}, {number:18, name:"황채린"}, {number:20, name:"김단아"}
+            ],
+            3: [
+                {number:1, name:"김소망"}, {number:2, name:"김희원"}, {number:4, name:"박예진"},
+                {number:5, name:"박하나"}, {number:6, name:"박하음"}, {number:8, name:"백효주"},
+                {number:9, name:"손예지"}, {number:10, name:"오채빈"}, {number:11, name:"이성현"},
+                {number:12, name:"이정선"}, {number:13, name:"임나경"}, {number:15, name:"정인영"},
+                {number:16, name:"조유진"}, {number:17, name:"주명은(위탁)"}, {number:18, name:"최윤아"}, {number:19, name:"호수민"}
+            ],
+            4: [
+                {number:1, name:"김민지"}, {number:2, name:"김예원"}, {number:3, name:"김유진"},
+                {number:4, name:"김하영"}, {number:5, name:"김하윤"}, {number:6, name:"노서희"},
+                {number:7, name:"박소윤"}, {number:8, name:"백다원"}, {number:9, name:"신나래"},
+                {number:10, name:"유예령"}, {number:11, name:"윤은서"}, {number:12, name:"윤채원"},
+                {number:13, name:"이가흔"}, {number:14, name:"이윤서(위탁)"}, {number:15, name:"임예서"},
+                {number:16, name:"정나윤(위탁)"}, {number:18, name:"한다은"}, {number:19, name:"함예빈"}, {number:20, name:"홍규림"}
+            ],
+            5: [
+                {number:1, name:"김민서"}, {number:2, name:"김서영"}, {number:3, name:"김수아"},
+                {number:5, name:"김태희"}, {number:6, name:"김하린"}, {number:7, name:"김혜빈(위탁)"},
+                {number:8, name:"김효림"}, {number:10, name:"서민주"}, {number:11, name:"성채빈"},
+                {number:12, name:"엄영인(위탁)"}, {number:13, name:"유혜원"}, {number:14, name:"이예나"},
+                {number:15, name:"이지혜"}, {number:16, name:"장은영"}, {number:17, name:"정여진"},
+                {number:18, name:"최설빈"}, {number:19, name:"최지율"}, {number:21, name:"유지니"}
+            ],
+            6: [
+                {number:1, name:"권지우"}, {number:2, name:"김가연"}, {number:3, name:"김경선"},
+                {number:4, name:"김다솔"}, {number:5, name:"김민정"}, {number:6, name:"김보민"},
+                {number:7, name:"김선아"}, {number:8, name:"김하린"}, {number:9, name:"문지민(위탁)"},
+                {number:12, name:"박세연(위탁)"}, {number:13, name:"서지우"}, {number:14, name:"서지원"},
+                {number:15, name:"송시영"}, {number:17, name:"윤채원"}, {number:18, name:"정하영"},
+                {number:19, name:"주혜리"}, {number:20, name:"한은설"}, {number:21, name:"박서희"}
+            ],
+            7: [
+                {number:1, name:"곽은영"}, {number:2, name:"김나연"}, {number:3, name:"김미정(위탁)"},
+                {number:5, name:"김소영"}, {number:6, name:"김유나"}, {number:7, name:"김태희"},
+                {number:8, name:"노현희"}, {number:9, name:"문보영"}, {number:11, name:"박하나"},
+                {number:12, name:"신세경"}, {number:13, name:"신유진"}, {number:14, name:"신태경"},
+                {number:15, name:"오영서(위탁)"}, {number:16, name:"이수정"}, {number:17, name:"장유진"},
+                {number:19, name:"조유진"}, {number:20, name:"최은아"}, {number:22, name:"엄가은"}
+            ],
+            8: [
+                {number:1, name:"금별"}, {number:2, name:"김서현"}, {number:3, name:"김연진"},
+                {number:4, name:"김예솔"}, {number:5, name:"김지은"}, {number:6, name:"김태희"},
+                {number:8, name:"박지홍"}, {number:9, name:"신효주"}, {number:10, name:"안시현"},
+                {number:11, name:"이도연"}, {number:12, name:"이수연"}, {number:13, name:"이윤서"},
+                {number:14, name:"이혜윤"}, {number:15, name:"전희연"}, {number:17, name:"조예린"},
+                {number:19, name:"최은림"}, {number:20, name:"한지서"}, {number:21, name:"김나경"}
+            ],
+            9: [
+                {number:1, name:"김사랑"}, {number:2, name:"김유나"}, {number:4, name:"박지유"},
+                {number:5, name:"손유진"}, {number:6, name:"신서연"}, {number:7, name:"신예림"},
+                {number:8, name:"이승아"}, {number:9, name:"이연서"}, {number:10, name:"이지우"},
+                {number:11, name:"임나현"}, {number:12, name:"최선아"}, {number:14, name:"하혜지"}, {number:16, name:"윤지혜"}
+            ]
+        };
+
+        const DEFAULT_COUNTS = { draw: 0, guard: 0, takeout: 0 };
+
+        let savedData = {};
+        try {
+            const localStr = localStorage.getItem('curling_eval_data_v3');
+            if (localStr) savedData = JSON.parse(localStr);
+        } catch(e) {}
+
+        const state = {
+            selectedClass: 1,
+            classesData: savedData
+        };
+
+        // 파이어베이스 실시간 데이터 가져오기
+        if (dbRef) {
+            dbRef.on('value', (snapshot) => {
+                const remoteData = snapshot.val();
+                if (remoteData && typeof remoteData === 'object') {
+                    state.classesData = remoteData;
+                    try {
+                        localStorage.setItem('curling_eval_data_v3', JSON.stringify(state.classesData));
+                    } catch(e) {}
+                    render();
+                }
+            });
+        }
+
+        function initData() {
+            for (let c = 1; c <= 9; c++) {
+                if (!state.classesData[c]) state.classesData[c] = {};
+                const roster = INITIAL_ROSTERS[c] || [];
+                roster.forEach(st => {
+                    if (!state.classesData[c][st.number]) {
+                        state.classesData[c][st.number] = { ...DEFAULT_COUNTS };
+                    }
+                });
+            }
+            saveData();
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('curling_eval_data_v3', JSON.stringify(state.classesData));
+            } catch(e) {}
+            if (dbRef) {
+                dbRef.set(state.classesData).catch(err => console.error("DB 저장 실패:", err));
+            }
+        }
+
+        function calcDrawScore(c) {
+            const count = (c === undefined || c === null) ? 0 : Number(c);
+            if (count >= 4) return 40;
+            if (count === 3) return 35;
+            if (count === 2) return 30;
+            if (count === 1) return 25;
+            return 20;
+        }
+
+        function calcGuardScore(c) {
+            const count = (c === undefined || c === null) ? 0 : Number(c);
+            if (count >= 4) return 40;
+            if (count === 3) return 35;
+            if (count === 2) return 30;
+            if (count === 1) return 25;
+            return 20;
+        }
+
+        function calcTakeoutScore(c) {
+            const count = (c === undefined || c === null) ? 0 : Number(c);
+            if (count >= 3) return 20;
+            if (count === 2) return 15;
+            return 10;
+        }
+
+        function calcGrade(totalScore) {
+            if (totalScore >= 80) return "A";
+            if (totalScore >= 60) return "B";
+            return "C";
+        }
+
+        function selectClass(c) {
+            state.selectedClass = c;
+            render();
+        }
+
+        function changeScore(num, cat, delta) {
+            const cNum = state.selectedClass;
+            if (!state.classesData[cNum][num]) {
+                state.classesData[cNum][num] = { ...DEFAULT_COUNTS };
+            }
+            const sData = state.classesData[cNum][num];
+            const maxVal = (cat === 'takeout') ? 3 : 4;
+
+            const currentVal = (sData[cat] === undefined || sData[cat] === null) ? 0 : sData[cat];
+            let newVal = currentVal + delta;
+            if (newVal < 0) newVal = 0;
+            if (newVal > maxVal) newVal = maxVal;
+
+            sData[cat] = newVal;
+            saveData();
+            render();
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            if (!app) return;
+
+            const cNum = state.selectedClass;
+            const roster = INITIAL_ROSTERS[cNum] || [];
+
+            app.innerHTML = `
+                <div class="flex flex-col flex-grow bg-slate-950 text-white min-h-screen">
+                    <div class="p-4 bg-slate-900 flex justify-between items-center border-b border-slate-800 sticky top-0 z-10 shadow-md">
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-100">🥌 미니 컬링 수행평가 장부</h2>
+                            <p class="text-[10px] text-teal-400 font-medium">기본 50점(20+20+10) · 최대 100점(40+40+20)</p>
+                        </div>
+                        <button onclick="downloadExcel(${cNum})" class="btn-chic text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl font-bold shadow">
+                            📊 ${cNum}반 엑셀 다운
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-900/90 p-2.5 flex overflow-x-auto space-x-1.5 border-b border-slate-800">
+                        ${[1,2,3,4,5,6,7,8,9].map(c => `
+                            <button onclick="selectClass(${c})" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${c===cNum?'bg-indigo-600 text-white shadow':'bg-slate-800 text-slate-400 hover:bg-slate-700'}">
+                                1-${c}반
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div class="p-4 flex-grow overflow-y-auto space-y-3 pb-12">
+                        <div class="flex justify-between items-center py-1">
+                            <span class="text-xs font-bold text-slate-300">1학년 ${cNum}반 학생 (${roster.length}명)</span>
+                            <span class="text-[11px] text-slate-400">0개 기본값 자동 적용</span>
+                        </div>
+
+                        <div class="space-y-3">
+                            ${roster.map(st => {
+                                const rawData = (state.classesData[cNum] && state.classesData[cNum][st.number]) || {};
+                                const sData = {
+                                    draw: rawData.draw ?? DEFAULT_COUNTS.draw,
+                                    guard: rawData.guard ?? DEFAULT_COUNTS.guard,
+                                    takeout: rawData.takeout ?? DEFAULT_COUNTS.takeout
+                                };
+                                const dScore = calcDrawScore(sData.draw);
+                                const gScore = calcGuardScore(sData.guard);
+                                const tScore = calcTakeoutScore(sData.takeout);
+                                const totalScore = dScore + gScore + tScore;
+                                const grade = calcGrade(totalScore);
+
+                                return `
+                                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-sm">
+                                        <div class="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
+                                            <div class="flex items-center space-x-2">
+                                                <span class="w-6 h-6 flex items-center justify-center bg-indigo-950 text-indigo-400 font-bold text-xs rounded-md border border-indigo-800/50">${st.number}</span>
+                                                <span class="text-sm font-bold text-slate-100">${st.name}</span>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-xs font-black ${grade==='A'?'text-emerald-400 bg-emerald-500/10 border-emerald-500/30':grade==='B'?'text-sky-400 bg-sky-500/10 border-sky-500/30':'text-rose-400 bg-rose-500/10 border-rose-500/30'} px-2.5 py-1 rounded-lg border">
+                                                    ${grade}등급
+                                                </span>
+                                                <span class="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+                                                    ${totalScore}점
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col items-center justify-between">
+                                                <span class="text-[10px] text-slate-400 font-medium">🎯 드로우(기본20)</span>
+                                                <div class="flex items-center space-x-3 my-2">
+                                                    <button onclick="changeScore(${st.number}, 'draw', -1)" class="w-8 h-8 bg-slate-800 active:bg-indigo-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">-</button>
+                                                    <span class="text-base font-black text-indigo-400 min-w-[16px] text-center">${sData.draw}</span>
+                                                    <button onclick="changeScore(${st.number}, 'draw', 1)" class="w-8 h-8 bg-slate-800 active:bg-indigo-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">+</button>
+                                                </div>
+                                                <span class="text-[10px] text-slate-500">${dScore}점 환산</span>
+                                            </div>
+
+                                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col items-center justify-between">
+                                                <span class="text-[10px] text-slate-400 font-medium">🛡️ 가드(기본20)</span>
+                                                <div class="flex items-center space-x-3 my-2">
+                                                    <button onclick="changeScore(${st.number}, 'guard', -1)" class="w-8 h-8 bg-slate-800 active:bg-teal-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">-</button>
+                                                    <span class="text-base font-black text-teal-400 min-w-[16px] text-center">${sData.guard}</span>
+                                                    <button onclick="changeScore(${st.number}, 'guard', 1)" class="w-8 h-8 bg-slate-800 active:bg-teal-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">+</button>
+                                                </div>
+                                                <span class="text-[10px] text-slate-500">${gScore}점 환산</span>
+                                            </div>
+
+                                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col items-center justify-between">
+                                                <span class="text-[10px] text-slate-400 font-medium">💥 테이크(기본10)</span>
+                                                <div class="flex items-center space-x-3 my-2">
+                                                    <button onclick="changeScore(${st.number}, 'takeout', -1)" class="w-8 h-8 bg-slate-800 active:bg-sky-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">-</button>
+                                                    <span class="text-base font-black text-sky-400 min-w-[16px] text-center">${sData.takeout}</span>
+                                                    <button onclick="changeScore(${st.number}, 'takeout', 1)" class="w-8 h-8 bg-slate-800 active:bg-sky-600 text-slate-200 font-bold rounded-lg text-sm flex items-center justify-center">+</button>
+                                                </div>
+                                                <span class="text-[10px] text-slate-500">${tScore}점 환산</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadExcel(cNum) {
+            const roster = INITIAL_ROSTERS[cNum] || [];
+            let excelRows = [];
+
+            roster.forEach(st => {
+                const rawData = (state.classesData[cNum] && state.classesData[cNum][st.number]) || {};
+                const sData = {
+                    draw: rawData.draw ?? DEFAULT_COUNTS.draw,
+                    guard: rawData.guard ?? DEFAULT_COUNTS.guard,
+                    takeout: rawData.takeout ?? DEFAULT_COUNTS.takeout
+                };
+                const dScore = calcDrawScore(sData.draw);
+                const gScore = calcGuardScore(sData.guard);
+                const tScore = calcTakeoutScore(sData.takeout);
+                const totalScore = dScore + gScore + tScore;
+                const grade = calcGrade(totalScore);
+
+                excelRows.push({
+                    "반": `1-${cNum}반`,
+                    "번호": st.number,
+                    "성명": st.name,
+                    "성취등급": grade,
+                    "드로우성공개수": sData.draw,
+                    "드로우점수(40)": dScore,
+                    "가드성공개수": sData.guard,
+                    "가드점수(40)": gScore,
+                    "테이크아웃성공개수": sData.takeout,
+                    "테이크아웃점수(20)": tScore,
+                    "최종환산총점(100)": totalScore
+                });
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(excelRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `1-${cNum}반`);
+            XLSX.writeFile(workbook, `울산여상_1학년_${cNum}반_컬링_수행평가.xlsx`);
+        }
+
+        initData();
+        render();
+    </script>
+</body>
+</html>
